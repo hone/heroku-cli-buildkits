@@ -1,0 +1,14 @@
+[package]
+name = "heroku-cli-buildkits"
+version = "0.1.0"
+authors = ["Terence Lee <hone02@gmail.com>"]
+
+[dependencies]
+docopt = "0.8.0"
+serde = "1.0"
+serde_derive = "1.0"
+hyper-tls = "0.1.2"
+netrc = "0.4.1"
+
+[dev-dependencies]
+tempdir = "0.3"
