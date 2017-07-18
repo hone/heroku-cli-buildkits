@@ -8,6 +8,7 @@ use options::Options;
 
 mod commands;
 mod options;
+mod heroku_api;
 
 fn main() {
     let args = env::args();
@@ -24,5 +25,8 @@ fn main() {
                 err.description()
             ).expect("Could not write to stderr");
         });
-    } 
+    } else if options.cmd_register {
+        let cmd = commands::Register::new(options);
+        cmd.execute();
+    }
 }
