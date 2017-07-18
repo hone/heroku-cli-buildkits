@@ -5,22 +5,23 @@ extern crate netrc;
 extern crate tokio_core;
 
 use std::error;
+use std::env;
 use std::fmt;
 use std::fs::File;
 use std::io;
 use std::io::{BufReader, Write};
 use std::path::Path;
 use self::netrc::Netrc;
+use self::futures::{Future, Stream};
+use self::hyper::{Client, Method, Request};
+use self::hyper_tls::HttpsConnector;
+use self::tokio_core::reactor::Core;
 
 #[cfg(test)]
 extern crate tempdir;
 
-mod vars {
-    const BASE_URL: &'static str = "https://api.heroku.com";
-}
-
 #[derive(Debug)]
-enum HerokuApiError {
+pub enum HerokuApiError {
     Io(io::Error),
     Netrc(netrc::Error),
     Err(&'static str),
@@ -70,11 +71,48 @@ impl From<&'static str> for HerokuApiError {
     }
 }
 
+mod vars {
+    pub const BASE_URL: &'static str = "https://api.heroku.com";
+}
+
 pub struct HerokuApi {
 }
 
 impl HerokuApi {
-    pub fn fetch_credentials<P: AsRef<Path>>(self, file_path: P) -> Result<String, HerokuApiError> {
+    pub fn new() -> Self {
+        HerokuApi { }
+    }
+
+    pub fn get(self, uri: String) {
+        let mut core = Core::new().unwrap();
+        let client = Client::configure()
+            .connector(HttpsConnector::new(4, &core.handle()).unwrap())
+            .build(&core.handle());
+        let uri = format!("{}{}", self::vars::BASE_URL, uri).parse().unwrap();
+        let mut req = Request::new(Method::Get, uri);
+        Self::setup_headers(&mut req);
+        let work = client.request(req).and_then(|res| {
+            println!("Response: {}", res.status());
+            res.body().for_each(|chunk| {
+                io::stdout()
+                    .write_all(&chunk)
+                    .map(|_| ())
+                    .map_err(From::from)
+            })
+        });
+        core.run(work).unwrap();
+    }
+
+    fn setup_headers(req: &mut Request) {
+        let mut netrc_path = env::home_dir().unwrap();
+        netrc_path.push(".netrc");
+        let mut headers = req.headers_mut();
+        headers.set_raw("Accept", "application/vnd.heroku+json; version=3");
+        let credentials = HerokuApi::fetch_credentials(netrc_path).unwrap();
+        headers.set_raw("Authorization", format!("Bearer {}", credentials));
+    }
+
+    fn fetch_credentials<P: AsRef<Path>>(file_path: P) -> Result<String, HerokuApiError> {
         let file = File::open(file_path)?;
         let input = BufReader::new(file);
         let netrc = Netrc::parse(input)?;
@@ -104,7 +142,6 @@ machine api.heroku.com
   password {}
 ",
         password).as_bytes()).unwrap();
-        let api = HerokuApi { };
-        assert_eq!(password, api.fetch_credentials(&netrc_filepath).unwrap());
+        assert_eq!(password, HerokuApi::fetch_credentials(&netrc_filepath).unwrap());
     }
 }
