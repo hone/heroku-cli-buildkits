@@ -13,7 +13,8 @@ use std::io::{BufReader, Write};
 use std::path::Path;
 use self::netrc::Netrc;
 use self::futures::{Future, Stream};
-use self::hyper::{Client, Method, Request};
+use self::hyper::{Body, Client, Method, Request};
+use self::hyper::client::HttpConnector;
 use self::hyper_tls::HttpsConnector;
 use self::tokio_core::reactor::Core;
 
@@ -76,22 +77,29 @@ mod vars {
 }
 
 pub struct HerokuApi {
+    pub core: Box<Core>,
+    pub client: Box<Client<HttpsConnector<HttpConnector>, Body>>,
 }
 
 impl HerokuApi {
     pub fn new() -> Self {
-        HerokuApi { }
-    }
-
-    pub fn get(self, uri: String) {
-        let mut core = Core::new().unwrap();
+        let core = Core::new().unwrap();
         let client = Client::configure()
             .connector(HttpsConnector::new(4, &core.handle()).unwrap())
             .build(&core.handle());
+
+        HerokuApi {
+            core: Box::new(core),
+            client: Box::new(client),
+        }
+    }
+
+    pub fn get(self, uri: String) {
         let uri = format!("{}{}", self::vars::BASE_URL, uri).parse().unwrap();
         let mut req = Request::new(Method::Get, uri);
         Self::setup_headers(&mut req);
-        let work = client.request(req).and_then(|res| {
+
+        let work = self.client.request(req).and_then(|res| {
             println!("Response: {}", res.status());
             res.body().for_each(|chunk| {
                 io::stdout()
@@ -100,6 +108,8 @@ impl HerokuApi {
                     .map_err(From::from)
             })
         });
+
+        let mut core = self.core;
         core.run(work).unwrap();
     }
 
