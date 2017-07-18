@@ -94,10 +94,10 @@ impl HerokuApi {
         }
     }
 
-    pub fn get(self, uri: String) {
+    pub fn get(self, uri: String) -> Result<(), HerokuApiError> {
         let uri = format!("{}{}", self::vars::BASE_URL, uri).parse().unwrap();
         let mut req = Request::new(Method::Get, uri);
-        Self::setup_headers(&mut req);
+        Self::setup_headers(&mut req)?;
 
         let work = self.client.request(req).and_then(|res| {
             println!("Response: {}", res.status());
@@ -111,15 +111,19 @@ impl HerokuApi {
 
         let mut core = self.core;
         core.run(work).unwrap();
+
+        Ok(())
     }
 
-    fn setup_headers(req: &mut Request) {
-        let mut netrc_path = env::home_dir().unwrap();
+    fn setup_headers(req: &mut Request) -> Result<(), HerokuApiError> {
+        let mut netrc_path = env::home_dir().ok_or("Impossible to get your home directory")?;
         netrc_path.push(".netrc");
         let mut headers = req.headers_mut();
         headers.set_raw("Accept", "application/vnd.heroku+json; version=3");
-        let credentials = HerokuApi::fetch_credentials(netrc_path).unwrap();
+        let credentials = HerokuApi::fetch_credentials(netrc_path)?;
         headers.set_raw("Authorization", format!("Bearer {}", credentials));
+
+        Ok(())
     }
 
     fn fetch_credentials<P: AsRef<Path>>(file_path: P) -> Result<String, HerokuApiError> {
