@@ -10,7 +10,7 @@ use std::fmt;
 use std::fs::File;
 use std::io;
 use std::io::{BufReader, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use self::netrc::Netrc;
 use self::futures::{Future, Stream};
 use self::hyper::{Body, Client, Method, Request};
@@ -94,10 +94,11 @@ impl HerokuApi {
         }
     }
 
-    pub fn get(self, uri: String) -> Result<(), HerokuApiError> {
+    pub fn get(self, uri: String, version: Option<String>) -> Result<(), HerokuApiError> {
         let uri = format!("{}{}", self::vars::BASE_URL, uri).parse().unwrap();
         let mut req = Request::new(Method::Get, uri);
-        Self::setup_headers(&mut req)?;
+        let token = HerokuApi::fetch_credentials(HerokuApi::default_netrc_path().unwrap()).unwrap();
+        Self::setup_headers(&mut req, token, version);
 
         let work = self.client.request(req).and_then(|res| {
             println!("Response: {}", res.status());
@@ -115,15 +116,18 @@ impl HerokuApi {
         Ok(())
     }
 
-    fn setup_headers(req: &mut Request) -> Result<(), HerokuApiError> {
+    fn setup_headers(req: &mut Request, auth_token: String, param_version: Option<String>) {
+        let mut headers = req.headers_mut();
+        let version = param_version.unwrap_or(String::from("3"));
+        headers.set_raw("Accept", format!("application/vnd.heroku+json; version={}", version));
+        headers.set_raw("Authorization", format!("Bearer {}", auth_token));
+    }
+
+    fn default_netrc_path() -> Result<PathBuf, HerokuApiError> {
         let mut netrc_path = env::home_dir().ok_or("Impossible to get your home directory")?;
         netrc_path.push(".netrc");
-        let mut headers = req.headers_mut();
-        headers.set_raw("Accept", "application/vnd.heroku+json; version=3");
-        let credentials = HerokuApi::fetch_credentials(netrc_path)?;
-        headers.set_raw("Authorization", format!("Bearer {}", credentials));
 
-        Ok(())
+        Ok(netrc_path)
     }
 
     fn fetch_credentials<P: AsRef<Path>>(file_path: P) -> Result<String, HerokuApiError> {
@@ -142,7 +146,37 @@ impl HerokuApi {
 #[cfg(test)]
 mod test {
     use super::*;
+    use std::ops::Deref;
     use self::tempdir::TempDir;
+    use self::hyper::header;
+
+    #[test]
+    fn setup_headers_default_version() {
+        let uri = "https://www.google.com".parse().unwrap();
+        let mut request = Request::new(Method::Get, uri);
+        let token = String::from("e1bd3f9535a2ed54684ec2af0190e3844aaec8b8");
+
+        HerokuApi::setup_headers(&mut request, token.clone(), None);
+
+        let headers = request.headers();
+        assert_eq!(headers.get::<header::Authorization<header::Bearer>>().unwrap().deref().token, token);
+        assert_eq!(headers.get::<header::Accept>().unwrap()[0].item, "application/vnd.heroku+json; version=3")
+    }
+
+    #[test]
+    fn setup_headers_version() {
+        let uri = "https://www.google.com".parse().unwrap();
+        let mut request = Request::new(Method::Get, uri);
+        let token = String::from("e1bd3f9535a2ed54684ec2af0190e3844aaec8b8");
+        let version = String::from("3.buildpack-registry");
+
+        HerokuApi::setup_headers(&mut request, token.clone(), Some(version.clone()));
+
+        let headers = request.headers();
+        let ref accept = headers.get::<header::Accept>().unwrap()[0];
+        let expected: &str = &format!("application/vnd.heroku+json; version={}", version);
+        assert_eq!(accept.item, expected);
+    }
 
     #[test]
     fn fetch_credentials() {
