@@ -30,5 +30,8 @@ fn main() {
     } else if options.cmd_register {
         let cmd = commands::Register::new(options);
         cmd.execute();
+    } else if options.cmd_search {
+        let cmd = commands::Search::new(options);
+        cmd.execute();
     }
 }

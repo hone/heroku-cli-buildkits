@@ -6,6 +6,7 @@ pub struct Options {
     pub cmd_register: bool,
     pub cmd_publish: bool,
     pub cmd_rollback: bool,
+    pub cmd_search: bool,
     pub arg_name: String,
     pub arg_repo: String,
     pub arg_treeish: String,
@@ -26,9 +27,10 @@ Heroku Buildpacks CLI
 
 USAGE:
   buildpacks init <name>
-  buildpacks register <repo>
+  buildpacks register <repo> [<name>]
   buildpacks publish [<name>] [<treeish>]
   buildpacks rollback <name> <revision>
+  buildpacks search [<name>]
 ";
 
 }
