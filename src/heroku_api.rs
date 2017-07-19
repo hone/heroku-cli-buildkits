@@ -2,6 +2,7 @@ extern crate futures;
 extern crate hyper;
 extern crate hyper_tls;
 extern crate netrc;
+extern crate serde_json;
 extern crate tokio_core;
 
 use std::error;
@@ -9,7 +10,7 @@ use std::env;
 use std::fmt;
 use std::fs::File;
 use std::io;
-use std::io::{BufReader, Write};
+use std::io::BufReader;
 use std::path::{Path, PathBuf};
 use self::netrc::Netrc;
 use self::futures::{Future, Stream};
@@ -94,7 +95,15 @@ impl HerokuApi {
         }
     }
 
-    pub fn get(self, uri: String, version: Option<String>) -> Result<(), HerokuApiError> {
+    pub fn get(self, uri: String) -> Result<serde_json::Value, HerokuApiError> {
+        self.get_options(uri, None)
+    }
+
+    pub fn get_with_version(self, uri: String, version: String) -> Result<serde_json::Value, HerokuApiError> {
+        self.get_options(uri, Some(version))
+    }
+
+    pub fn get_options(self, uri: String, version: Option<String>) -> Result<serde_json::Value, HerokuApiError> {
         let uri = format!("{}{}", self::vars::BASE_URL, uri).parse().unwrap();
         let mut req = Request::new(Method::Get, uri);
         let token = HerokuApi::fetch_credentials(HerokuApi::default_netrc_path().unwrap()).unwrap();
@@ -102,18 +111,20 @@ impl HerokuApi {
 
         let work = self.client.request(req).and_then(|res| {
             println!("Response: {}", res.status());
-            res.body().for_each(|chunk| {
-                io::stdout()
-                    .write_all(&chunk)
-                    .map(|_| ())
-                    .map_err(From::from)
+            res.body().concat2().and_then(move |body| {
+                let v: serde_json::Value = serde_json::from_slice(&body).map_err(|e| {
+                    io::Error::new(
+                        io::ErrorKind::Other,
+                        e
+                    )
+                })?;
+                Ok(v)
             })
         });
-
         let mut core = self.core;
         core.run(work).unwrap();
 
-        Ok(())
+        Ok(json!(null))
     }
 
     fn setup_headers(req: &mut Request, auth_token: String, param_version: Option<String>) {
@@ -146,6 +157,7 @@ impl HerokuApi {
 #[cfg(test)]
 mod test {
     use super::*;
+    use std::io::Write;
     use std::ops::Deref;
     use self::tempdir::TempDir;
     use self::hyper::header;

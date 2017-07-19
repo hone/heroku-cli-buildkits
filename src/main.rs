@@ -1,5 +1,7 @@
 #[macro_use]
 extern crate serde_derive;
+#[macro_use]
+extern crate serde_json;
 
 use std::env;
 use std::error::Error;

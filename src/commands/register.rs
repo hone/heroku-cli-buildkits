@@ -12,7 +12,7 @@ impl Register {
 
     pub fn execute(self) {
         let api = HerokuApi::new();
-        api.get(String::from("/apps"), None);
+        api.get(String::from("/apps"));
     }
 }
 
