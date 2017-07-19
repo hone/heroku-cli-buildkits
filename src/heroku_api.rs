@@ -16,6 +16,7 @@ use self::netrc::Netrc;
 use self::futures::{Future, Stream};
 use self::hyper::{Body, Client, Method, Request};
 use self::hyper::client::HttpConnector;
+use self::hyper::error::UriError;
 use self::hyper_tls::HttpsConnector;
 use self::tokio_core::reactor::Core;
 
@@ -26,6 +27,7 @@ extern crate tempdir;
 pub enum HerokuApiError {
     Io(io::Error),
     Netrc(netrc::Error),
+    Uri(UriError),
     Err(&'static str),
 }
 
@@ -37,6 +39,7 @@ impl fmt::Display for HerokuApiError {
                 &netrc::Error::Io(ref err) => write!(f, "Netrc IO error {}", err),
                 &netrc::Error::Parse(ref msg, ref lnum) => write!(f, "Netrc error, line: {}, error: {}", lnum, msg),
             },
+            HerokuApiError::Uri(ref err) => write!(f, "URI error {}", err),
             HerokuApiError::Err(ref err) => write!(f, "Err {}", err),
         }
     }
@@ -50,6 +53,7 @@ impl error::Error for HerokuApiError {
                 &netrc::Error::Io(ref io_err) => &io_err.description(),
                 &netrc::Error::Parse(ref msg, _) => msg,
             },
+            HerokuApiError::Uri(ref err) => err.description(),
             HerokuApiError::Err(ref err) => err,
         }
     }
@@ -64,6 +68,12 @@ impl From<io::Error> for HerokuApiError {
 impl From<netrc::Error> for HerokuApiError {
     fn from(error: netrc::Error) -> Self {
         HerokuApiError::Netrc(error)
+    }
+}
+
+impl From<UriError> for HerokuApiError {
+    fn from(error: UriError) -> Self {
+        HerokuApiError::Uri(error)
     }
 }
 
@@ -104,9 +114,10 @@ impl HerokuApi {
     }
 
     pub fn get_options(self, uri: &str, version: Option<&str>) -> Result<serde_json::Value, HerokuApiError> {
-        let uri = format!("{}{}", self::vars::BASE_URL, uri).parse().unwrap();
+        let uri = format!("{}{}", self::vars::BASE_URL, uri).parse()?;
         let mut req = Request::new(Method::Get, uri);
-        let token = HerokuApi::fetch_credentials(HerokuApi::default_netrc_path().unwrap()).unwrap();
+        let netrc_path = Self::default_netrc_path()?;
+        let token = Self::fetch_credentials(netrc_path)?;
         Self::setup_headers(&mut req, &token, version);
 
         let work = self.client.request(req).and_then(|res| {
