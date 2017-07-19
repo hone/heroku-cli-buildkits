@@ -12,6 +12,6 @@ impl Search {
 
     pub fn execute(self) {
         let api = HerokuApi::new();
-        api.get_with_version(String::from("/buildpacks"), String::from("3.buildpack-registry"));
+        api.get_with_version("/buildpacks", "3.buildpack-registry");
     }
 }

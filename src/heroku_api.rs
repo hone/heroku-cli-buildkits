@@ -95,19 +95,19 @@ impl HerokuApi {
         }
     }
 
-    pub fn get(self, uri: String) -> Result<serde_json::Value, HerokuApiError> {
+    pub fn get(self, uri: &str) -> Result<serde_json::Value, HerokuApiError> {
         self.get_options(uri, None)
     }
 
-    pub fn get_with_version(self, uri: String, version: String) -> Result<serde_json::Value, HerokuApiError> {
+    pub fn get_with_version(self, uri: &str, version: &str) -> Result<serde_json::Value, HerokuApiError> {
         self.get_options(uri, Some(version))
     }
 
-    pub fn get_options(self, uri: String, version: Option<String>) -> Result<serde_json::Value, HerokuApiError> {
+    pub fn get_options(self, uri: &str, version: Option<&str>) -> Result<serde_json::Value, HerokuApiError> {
         let uri = format!("{}{}", self::vars::BASE_URL, uri).parse().unwrap();
         let mut req = Request::new(Method::Get, uri);
         let token = HerokuApi::fetch_credentials(HerokuApi::default_netrc_path().unwrap()).unwrap();
-        Self::setup_headers(&mut req, token, version);
+        Self::setup_headers(&mut req, &token, version);
 
         let work = self.client.request(req).and_then(|res| {
             println!("Response: {}", res.status());
@@ -127,9 +127,9 @@ impl HerokuApi {
         Ok(json!(null))
     }
 
-    fn setup_headers(req: &mut Request, auth_token: String, param_version: Option<String>) {
+    fn setup_headers(req: &mut Request, auth_token: &str, param_version: Option<&str>) {
         let mut headers = req.headers_mut();
-        let version = param_version.unwrap_or(String::from("3"));
+        let version = param_version.unwrap_or("3");
         headers.set_raw("Accept", format!("application/vnd.heroku+json; version={}", version));
         headers.set_raw("Authorization", format!("Bearer {}", auth_token));
     }
@@ -168,7 +168,7 @@ mod test {
         let mut request = Request::new(Method::Get, uri);
         let token = String::from("e1bd3f9535a2ed54684ec2af0190e3844aaec8b8");
 
-        HerokuApi::setup_headers(&mut request, token.clone(), None);
+        HerokuApi::setup_headers(&mut request, &token, None);
 
         let headers = request.headers();
         assert_eq!(headers.get::<header::Authorization<header::Bearer>>().unwrap().deref().token, token);
@@ -182,7 +182,7 @@ mod test {
         let token = String::from("e1bd3f9535a2ed54684ec2af0190e3844aaec8b8");
         let version = String::from("3.buildpack-registry");
 
-        HerokuApi::setup_headers(&mut request, token.clone(), Some(version.clone()));
+        HerokuApi::setup_headers(&mut request, &token, Some(&version));
 
         let headers = request.headers();
         let ref accept = headers.get::<header::Accept>().unwrap()[0];
