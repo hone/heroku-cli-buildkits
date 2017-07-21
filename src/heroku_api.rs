@@ -28,6 +28,7 @@ pub enum HerokuApiError {
     Io(io::Error),
     Netrc(netrc::Error),
     Uri(UriError),
+    Hyper(hyper::Error),
     Err(&'static str),
 }
 
@@ -40,6 +41,7 @@ impl fmt::Display for HerokuApiError {
                 &netrc::Error::Parse(ref msg, ref lnum) => write!(f, "Netrc error, line: {}, error: {}", lnum, msg),
             },
             HerokuApiError::Uri(ref err) => write!(f, "URI error {}", err),
+            HerokuApiError::Hyper(ref err) => write!(f, "Hyper error {}", err),
             HerokuApiError::Err(ref err) => write!(f, "Err {}", err),
         }
     }
@@ -53,6 +55,7 @@ impl error::Error for HerokuApiError {
                 &netrc::Error::Io(ref io_err) => &io_err.description(),
                 &netrc::Error::Parse(ref msg, _) => msg,
             },
+            HerokuApiError::Hyper(ref err) => err.description(),
             HerokuApiError::Uri(ref err) => err.description(),
             HerokuApiError::Err(ref err) => err,
         }
@@ -74,6 +77,12 @@ impl From<netrc::Error> for HerokuApiError {
 impl From<UriError> for HerokuApiError {
     fn from(error: UriError) -> Self {
         HerokuApiError::Uri(error)
+    }
+}
+
+impl From<hyper::Error> for HerokuApiError {
+    fn from(error: hyper::Error) -> Self {
+        HerokuApiError::Hyper(error)
     }
 }
 
@@ -133,7 +142,7 @@ impl HerokuApi {
             })
         });
         let mut core = self.core;
-        core.run(work).unwrap();
+        core.run(work)?;
 
         Ok(json!(null))
     }
