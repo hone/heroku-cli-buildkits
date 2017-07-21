@@ -88,8 +88,8 @@ mod vars {
 }
 
 pub struct HerokuApi {
-    pub core: Box<Core>,
-    pub client: Box<Client<HttpsConnector<HttpConnector>, Body>>,
+    pub core: Core,
+    pub client: Client<HttpsConnector<HttpConnector>, Body>,
 }
 
 impl HerokuApi {
@@ -100,8 +100,8 @@ impl HerokuApi {
             .build(&core.handle());
 
         HerokuApi {
-            core: Box::new(core),
-            client: Box::new(client),
+            core: core,
+            client: client,
         }
     }
 
