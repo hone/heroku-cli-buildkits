@@ -122,7 +122,7 @@ impl HerokuApi {
         self.get_options(uri, Some(version))
     }
 
-    pub fn get_options(self, uri: &str, version: Option<&str>) -> Result<serde_json::Value, HerokuApiError> {
+    fn get_options(self, uri: &str, version: Option<&str>) -> Result<serde_json::Value, HerokuApiError> {
         let uri = format!("{}{}", self::vars::BASE_URL, uri).parse()?;
         let mut req = Request::new(Method::Get, uri);
         let netrc_path = Self::default_netrc_path()?;
@@ -132,19 +132,20 @@ impl HerokuApi {
         let work = self.client.request(req).and_then(|res| {
             println!("Response: {}", res.status());
             res.body().concat2().and_then(move |body| {
-                let v: serde_json::Value = serde_json::from_slice(&body).map_err(|e| {
+                let json: serde_json::Value = serde_json::from_slice(&body).map_err(|e| {
                     io::Error::new(
                         io::ErrorKind::Other,
                         e
                     )
                 })?;
-                Ok(v)
+                Ok(json)
             })
         });
-        let mut core = self.core;
-        core.run(work)?;
 
-        Ok(json!(null))
+        let mut core = self.core;
+        let json = core.run(work).unwrap_or(json!(null));
+
+        Ok(json)
     }
 
     fn setup_headers(req: &mut Request, auth_token: &str, param_version: Option<&str>) {
