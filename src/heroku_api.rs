@@ -14,7 +14,7 @@ use std::io::BufReader;
 use std::path::{Path, PathBuf};
 use self::netrc::Netrc;
 use self::futures::{Future, Stream};
-use self::hyper::{Body, Client, Method, Request};
+use self::hyper::{Body, Client, Method, Request, header};
 use self::hyper::client::HttpConnector;
 use self::hyper::error::UriError;
 use self::hyper_tls::HttpsConnector;
@@ -96,6 +96,20 @@ mod vars {
     pub const BASE_URL: &'static str = "https://api.heroku.com";
 }
 
+pub struct Response {
+    pub status: hyper::StatusCode,
+    pub body: serde_json::Value,
+}
+
+impl Response {
+    pub fn new(status: hyper::StatusCode, body: serde_json::Value) -> Self {
+        Response {
+            status: status,
+            body: body,
+        }
+    }
+}
+
 pub struct HerokuApi {
     pub core: Core,
     pub client: Client<HttpsConnector<HttpConnector>, Body>,
@@ -114,23 +128,44 @@ impl HerokuApi {
         }
     }
 
-    pub fn get(self, uri: &str) -> Result<serde_json::Value, HerokuApiError> {
-        self.get_options(uri, None)
+    #[allow(dead_code)]
+    pub fn get(self, uri: &str) -> Result<Response, HerokuApiError> {
+        self.request(uri, Method::Get, None, None)
     }
 
-    pub fn get_with_version(self, uri: &str, version: &str) -> Result<serde_json::Value, HerokuApiError> {
-        self.get_options(uri, Some(version))
+    #[allow(dead_code)]
+    pub fn get_with_version(self, uri: &str, version: &str) -> Result<Response, HerokuApiError> {
+        self.request(uri, Method::Get, Some(version), None)
     }
 
-    fn get_options(self, uri: &str, version: Option<&str>) -> Result<serde_json::Value, HerokuApiError> {
+    #[allow(dead_code)]
+    pub fn post(self, uri: &str, body: serde_json::Value) -> Result<Response, HerokuApiError> {
+        self.request(uri, Method::Post, None, Some(body))
+    }
+
+    #[allow(dead_code)]
+    pub fn post_with_version(self, uri: &str, version: &str, body: serde_json::Value) -> Result<Response, HerokuApiError> {
+        self.request(uri, Method::Post, Some(version), Some(body))
+    }
+
+    fn request(self, uri: &str, method: Method, version: Option<&str>, body: Option<serde_json::Value>) -> Result<Response, HerokuApiError> {
         let uri = format!("{}{}", self::vars::BASE_URL, uri).parse()?;
-        let mut req = Request::new(Method::Get, uri);
+        let mut req = Request::new(method, uri);
         let netrc_path = Self::default_netrc_path()?;
         let token = Self::fetch_credentials(netrc_path)?;
         Self::setup_headers(&mut req, &token, version);
 
-        let work = self.client.request(req).and_then(|res| {
-            println!("Response: {}", res.status());
+        match body {
+            Some(json) => {
+                let json_string = json.to_string();
+                req.headers_mut().set(header::ContentLength(json_string.len() as u64));
+                req.set_body(json_string)
+            },
+            None => (),
+        }
+
+        let work = self.client.request(req).and_then(move |res| {
+            let status = res.status();
             res.body().concat2().and_then(move |body| {
                 let json: serde_json::Value = serde_json::from_slice(&body).map_err(|e| {
                     io::Error::new(
@@ -138,20 +173,21 @@ impl HerokuApi {
                         e
                     )
                 })?;
-                Ok(json)
+                Ok(Response::new(status, json))
             })
         });
 
         let mut core = self.core;
-        let json = core.run(work).unwrap_or(json!(null));
+        let response = core.run(work).unwrap_or(Response::new(hyper::StatusCode::default(), json!(null)));
 
-        Ok(json)
+        Ok(response)
     }
 
     fn setup_headers(req: &mut Request, auth_token: &str, param_version: Option<&str>) {
         let mut headers = req.headers_mut();
         let version = param_version.unwrap_or("3");
         headers.set_raw("Accept", format!("application/vnd.heroku+json; version={}", version));
+        headers.set_raw("Content-Type", "application/json");
         headers.set_raw("Authorization", format!("Bearer {}", auth_token));
     }
 
