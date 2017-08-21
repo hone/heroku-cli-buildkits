@@ -10,13 +10,15 @@ use self::hyper::StatusCode;
 struct CreateBuildpacks {
     name: String,
     source: CreateBuildpacksSource,
+    owner: CreateBuildpacksOwner,
 }
 
 impl CreateBuildpacks {
-    pub fn new(name: &str, repo_string: &str) -> Self {
+    pub fn new(name: &str, repo_string: &str, owner_id: &str, owner_type: &str) -> Self {
         CreateBuildpacks {
             name: name.to_owned(),
             source: CreateBuildpacksSource::new(repo_string),
+            owner: CreateBuildpacksOwner::new(owner_id, owner_type),
         }
     }
 }
@@ -42,8 +44,25 @@ impl CreateBuildpacksSource {
     }
 }
 
+#[derive(Serialize, Deserialize)]
+struct CreateBuildpacksOwner {
+    id: String,
+    #[serde(rename = "type")]
+    owner_type: String,
+}
+
+impl CreateBuildpacksOwner {
+    pub fn new(id: &str, owner_type: &str) -> Self {
+        CreateBuildpacksOwner {
+            id: id.to_owned(),
+            owner_type: owner_type.to_owned(),
+        }
+    }
+}
+
 pub struct Register {
     repo: String,
+    namespace: String,
     name: String,
 }
 
@@ -51,14 +70,18 @@ impl Register {
     pub fn new(options: Options) -> Register {
         Register {
             name: options.arg_name,
+            namespace: options.arg_namespace,
             repo: options.arg_repo,
         }
     }
 
     pub fn execute(self) {
         let api = HerokuApi::new();
-        let body = json!(CreateBuildpacks::new(&self.name, &self.repo));
-        let response = api.post_with_version("/buildpacks", "3.buildpack-registry", body).unwrap();
+        let local_api = HerokuApi::new_with_host("http://localhost:3000");
+        let account_response = api.get("/account").unwrap();
+        let owner_uuid = &account_response.body["id"].as_str().unwrap();
+        let body = json!(CreateBuildpacks::new(&self.name, &self.repo, owner_uuid, "user"));
+        let response = local_api.post_with_version(&format!("/buildpacks/{}", &self.namespace), "3.buildpack-registry", body).unwrap();
 
         match response.status {
             StatusCode::Ok => {
@@ -74,7 +97,7 @@ impl Register {
                     println!("{} {}", key, error_message);
                 }
             },
-            status => println!("Could not register buildpack.\nReceived: {}, ", status),
+            status => println!("Could not register buildpack.\nReceived: {}, {}", status, response.body),
         }
     }
 }
