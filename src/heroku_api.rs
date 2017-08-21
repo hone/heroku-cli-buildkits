@@ -113,10 +113,21 @@ impl Response {
 pub struct HerokuApi {
     pub core: Core,
     pub client: Client<HttpsConnector<HttpConnector>, Body>,
+    pub base_url: String,
 }
 
 impl HerokuApi {
+    #[allow(dead_code)]
     pub fn new() -> Self {
+        Self::new_options(None)
+    }
+
+    #[allow(dead_code)]
+    pub fn new_with_host(host: &str) -> Self {
+        Self::new_options(Some(host))
+    }
+
+    fn new_options(host: Option<&str>) -> Self {
         let core = Core::new().unwrap();
         let client = Client::configure()
             .connector(HttpsConnector::new(4, &core.handle()).unwrap())
@@ -125,6 +136,7 @@ impl HerokuApi {
         HerokuApi {
             core: core,
             client: client,
+            base_url: host.unwrap_or(vars::BASE_URL).to_owned(),
         }
     }
 
@@ -149,7 +161,7 @@ impl HerokuApi {
     }
 
     fn request(self, uri: &str, method: Method, version: Option<&str>, body: Option<serde_json::Value>) -> Result<Response, HerokuApiError> {
-        let uri = format!("{}{}", self::vars::BASE_URL, uri).parse()?;
+        let uri = format!("{}{}", self.base_url, uri).parse()?;
         let mut req = Request::new(method, uri);
         let netrc_path = Self::default_netrc_path()?;
         let token = Self::fetch_credentials(netrc_path)?;
