@@ -1,4 +1,5 @@
-target/
-**/*.rs.bk
-target/
-**/*.rs.bk
+lib
+node_modules
+native/index.node
+native/target
+build/

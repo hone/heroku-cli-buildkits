@@ -61,9 +61,9 @@ impl CreateBuildpacksOwner {
 }
 
 pub struct Register {
-    repo: String,
-    namespace: String,
-    name: String,
+    pub repo: String,
+    pub namespace: String,
+    pub name: String,
 }
 
 impl Register {

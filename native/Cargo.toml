@@ -3,6 +3,10 @@ name = "heroku-cli-buildkits"
 version = "0.1.0"
 authors = ["Terence Lee <hone02@gmail.com>"]
 
+[lib]
+name = "heroku_cli_buildkits"
+crate-type = ["dylib"]
+
 [dependencies]
 docopt = "0.8.0"
 serde = "1.0"
@@ -13,6 +17,14 @@ hyper-tls = "0.1"
 tokio-core = "0.1"
 netrc = "0.4.1"
 futures = "0.1"
+neon = "0.1.19"
+
+[build-dependencies]
+neon-build = "0.1.19"
 
 [dev-dependencies]
 tempdir = "0.3"
+
+[replace]
+"neon:0.1.19" = { git = "https://github.com/neon-bindings/neon" }
+"neon-build:0.1.19" = { git = "https://github.com/neon-bindings/neon" }
