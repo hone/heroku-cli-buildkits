@@ -29,7 +29,7 @@ echo \"--- {}\"
 }
 
 pub struct Init {
-    name: String,
+    pub name: String,
 }
 
 impl Init {

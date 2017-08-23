@@ -9,14 +9,33 @@ mod commands;
 mod options;
 mod heroku_api;
 
+use std::error::Error;
+use std::io::prelude::*;
+use neon::js::{JsNull, JsString, Value};
 use neon::vm::{Call, JsResult};
-use neon::js::{JsNull, JsString};
 
-fn register(call: Call) -> JsResult<JsNull> {
-    let scope = call.scope;
-    let repo = call.arguments.require(scope, 0)?.check::<JsString>()?.value();
-    let namespace = call.arguments.require(scope, 1)?.check::<JsString>()?.value();
-    let name = call.arguments.require(scope, 2)?.check::<JsString>()?.value();
+fn init(mut call: Call) -> JsResult<JsNull> {
+    let name = fetch_arg::<JsString>(&mut call, 0)?.value();
+    let cmd = commands::Init {
+        name: name
+    };
+
+    cmd.execute().unwrap_or_else(|err| {
+        let mut stderr = std::io::stderr();
+        writeln!(
+            &mut stderr,
+            "I/O Error: {}",
+            err.description()
+        ).expect("Could not write to stderr");
+    });
+
+    Ok(JsNull::new())
+}
+
+fn register(mut call: Call) -> JsResult<JsNull> {
+    let repo = fetch_arg::<JsString>(&mut call, 0)?.value();
+    let namespace = fetch_arg::<JsString>(&mut call, 1)?.value();
+    let name = fetch_arg::<JsString>(&mut call, 2)?.value();
 
     let cmd = commands::Register {
         repo: repo,
@@ -29,7 +48,12 @@ fn register(call: Call) -> JsResult<JsNull> {
     Ok(JsNull::new())
 }
 
+fn fetch_arg<'a, T: Value>(call: &mut Call<'a>, index: i32) -> JsResult<'a, T> {
+    call.arguments.require(call.scope, index)?.check::<T>()
+}
+
 register_module!(m, {
-    m.export("register", register);
+    m.export("register", register)?;
+    m.export("init", init)?;
     Ok(())
 });
