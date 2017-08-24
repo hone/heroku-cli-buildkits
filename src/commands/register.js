@@ -6,7 +6,7 @@ var addon = require(addonPath)
 
 export default class Create extends Command {
   static topic = '_buildkits'
-  static command = 'create'
+  static command = 'register'
   static description = 'create a buildpack'
   static args = [
     {
