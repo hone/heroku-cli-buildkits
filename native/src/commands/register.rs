@@ -9,16 +9,27 @@ use self::hyper::StatusCode;
 #[derive(Serialize, Deserialize)]
 struct CreateBuildpacks {
     name: String,
+    namespace: String,
     source: CreateBuildpacksSource,
-    owner: CreateBuildpacksOwner,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    owner: Option<CreateBuildpacksOwner>,
 }
 
 impl CreateBuildpacks {
-    pub fn new(name: &str, repo_string: &str, owner_id: &str, owner_type: &str) -> Self {
+    pub fn new(name: &str, namespace: &str, repo_string: &str, owner_id: &str, owner_type: &str) -> Self {
+        Self::new_options(name, namespace, repo_string, Some(CreateBuildpacksOwner::new(owner_id, owner_type)))
+    }
+
+    pub fn new_without_owner(name: &str, namespace: &str, repo_string: &str) -> Self {
+        Self::new_options(name, namespace, repo_string, None)
+    }
+
+    fn new_options(name: &str, namespace: &str, repo_string: &str, owner: Option<CreateBuildpacksOwner>) -> Self {
         CreateBuildpacks {
             name: name.to_owned(),
+            namespace: namespace.to_owned(),
             source: CreateBuildpacksSource::new(repo_string),
-            owner: CreateBuildpacksOwner::new(owner_id, owner_type),
+            owner: owner,
         }
     }
 }
@@ -76,12 +87,9 @@ impl Register {
     }
 
     pub fn execute(self) {
-        let api = HerokuApi::new();
-        let local_api = HerokuApi::new_with_host("http://localhost:3000");
-        let account_response = api.get("/account").unwrap();
-        let owner_uuid = &account_response.body["id"].as_str().unwrap();
-        let body = json!(CreateBuildpacks::new(&self.name, &self.repo, owner_uuid, "user"));
-        let response = local_api.post_with_version(&format!("/buildpacks/{}", &self.namespace), "3.buildpack-registry", body).unwrap();
+        let api = HerokuApi::new_with_host("http://localhost:3000");
+        let body = json!(CreateBuildpacks::new_without_owner(&self.name, &self.namespace, &self.repo));
+        let response = api.post_with_version("/buildpacks/", "3.buildpack-registry", body).unwrap();
 
         match response.status {
             StatusCode::Ok => {
