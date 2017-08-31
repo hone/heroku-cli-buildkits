@@ -48,6 +48,16 @@ fn register(mut call: Call) -> JsResult<JsNull> {
     Ok(JsNull::new())
 }
 
+fn search(mut call: Call) -> JsResult<JsNull> {
+    let cmd = commands::Search {
+        name: "".to_owned(),
+    };
+
+    cmd.execute();
+
+    Ok(JsNull::new())
+}
+
 fn fetch_arg<'a, T: Value>(call: &mut Call<'a>, index: i32) -> JsResult<'a, T> {
     call.arguments.require(call.scope, index)?.check::<T>()
 }
@@ -55,5 +65,6 @@ fn fetch_arg<'a, T: Value>(call: &mut Call<'a>, index: i32) -> JsResult<'a, T> {
 register_module!(m, {
     m.export("register", register)?;
     m.export("init", init)?;
+    m.export("search", search)?;
     Ok(())
 });
