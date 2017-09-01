@@ -1,9 +1,9 @@
-extern crate hyper;
+extern crate reqwest;
 extern crate serde;
 
 use std::collections::VecDeque;
 use heroku_api::HerokuApi;
-use self::hyper::StatusCode;
+use self::reqwest::StatusCode;
 
 #[derive(Serialize, Deserialize)]
 struct CreateBuildpacks {

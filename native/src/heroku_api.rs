@@ -1,9 +1,6 @@
-extern crate futures;
-extern crate hyper;
-extern crate hyper_tls;
 extern crate netrc;
+extern crate reqwest;
 extern crate serde_json;
-extern crate tokio_core;
 
 use std::error;
 use std::env;
@@ -13,12 +10,8 @@ use std::io;
 use std::io::BufReader;
 use std::path::{Path, PathBuf};
 use self::netrc::Netrc;
-use self::futures::{Future, Stream};
-use self::hyper::{Body, Client, Method, Request, header};
-use self::hyper::client::HttpConnector;
-use self::hyper::error::UriError;
-use self::hyper_tls::HttpsConnector;
-use self::tokio_core::reactor::Core;
+use self::reqwest::header::{Headers, ContentLength};
+use self::reqwest::{Method, StatusCode};
 
 #[cfg(test)]
 extern crate tempdir;
@@ -27,8 +20,6 @@ extern crate tempdir;
 pub enum HerokuApiError {
     Io(io::Error),
     Netrc(netrc::Error),
-    Uri(UriError),
-    Hyper(hyper::Error),
     Err(&'static str),
 }
 
@@ -40,8 +31,6 @@ impl fmt::Display for HerokuApiError {
                 &netrc::Error::Io(ref err) => write!(f, "Netrc IO error {}", err),
                 &netrc::Error::Parse(ref msg, ref lnum) => write!(f, "Netrc error, line: {}, error: {}", lnum, msg),
             },
-            HerokuApiError::Uri(ref err) => write!(f, "URI error {}", err),
-            HerokuApiError::Hyper(ref err) => write!(f, "Hyper error {}", err),
             HerokuApiError::Err(ref err) => write!(f, "Err {}", err),
         }
     }
@@ -55,8 +44,6 @@ impl error::Error for HerokuApiError {
                 &netrc::Error::Io(ref io_err) => &io_err.description(),
                 &netrc::Error::Parse(ref msg, _) => msg,
             },
-            HerokuApiError::Hyper(ref err) => err.description(),
-            HerokuApiError::Uri(ref err) => err.description(),
             HerokuApiError::Err(ref err) => err,
         }
     }
@@ -74,18 +61,6 @@ impl From<netrc::Error> for HerokuApiError {
     }
 }
 
-impl From<UriError> for HerokuApiError {
-    fn from(error: UriError) -> Self {
-        HerokuApiError::Uri(error)
-    }
-}
-
-impl From<hyper::Error> for HerokuApiError {
-    fn from(error: hyper::Error) -> Self {
-        HerokuApiError::Hyper(error)
-    }
-}
-
 impl From<&'static str> for HerokuApiError {
     fn from(error: &'static str) -> Self {
         HerokuApiError::Err(error)
@@ -97,12 +72,12 @@ mod vars {
 }
 
 pub struct Response {
-    pub status: hyper::StatusCode,
+    pub status: StatusCode,
     pub body: serde_json::Value,
 }
 
 impl Response {
-    pub fn new(status: hyper::StatusCode, body: serde_json::Value) -> Self {
+    pub fn new(status: StatusCode, body: serde_json::Value) -> Self {
         Response {
             status: status,
             body: body,
@@ -111,8 +86,7 @@ impl Response {
 }
 
 pub struct HerokuApi {
-    pub core: Core,
-    pub client: Client<HttpsConnector<HttpConnector>, Body>,
+    pub client: reqwest::Client,
     pub base_url: String,
 }
 
@@ -128,14 +102,8 @@ impl HerokuApi {
     }
 
     fn new_options(host: Option<&str>) -> Self {
-        let core = Core::new().unwrap();
-        let client = Client::configure()
-            .connector(HttpsConnector::new(4, &core.handle()).unwrap())
-            .build(&core.handle());
-
         HerokuApi {
-            core: core,
-            client: client,
+            client: reqwest::Client::new().unwrap(),
             base_url: host.unwrap_or(vars::BASE_URL).to_owned(),
         }
     }
@@ -161,46 +129,42 @@ impl HerokuApi {
     }
 
     fn request(self, uri: &str, method: Method, version: Option<&str>, body: Option<serde_json::Value>) -> Result<Response, HerokuApiError> {
-        let uri = format!("{}{}", self.base_url, uri).parse()?;
-        let mut req = Request::new(method, uri);
+        let uri = format!("{}{}", self.base_url, uri);
+        let mut req = self.client.request(method, &uri).unwrap();
         let netrc_path = Self::default_netrc_path()?;
         let token = Self::fetch_credentials(netrc_path)?;
-        Self::setup_headers(&mut req, &token, version);
+        let headers = Self::construct_headers(&token, version);
+        let req = req.headers(headers);
 
-        match body {
+        let req = match body {
             Some(json) => {
                 let json_string = json.to_string();
-                req.headers_mut().set(header::ContentLength(json_string.len() as u64));
-                req.set_body(json_string)
+                req.header(ContentLength(json_string.len() as u64))
+                    .body(json_string)
             },
-            None => (),
+            None => req,
+        };
+
+        let mut response = req.send().unwrap();
+        let status = response.status();
+        match status {
+            StatusCode::Ok => {
+                Ok(Response::new(status, response.json().unwrap()))
+            },
+            _ => {
+                Ok(Response::new(status, json!(null)))
+            },
         }
-
-        let work = self.client.request(req).and_then(move |res| {
-            let status = res.status();
-            res.body().concat2().and_then(move |body| {
-                let json: serde_json::Value = serde_json::from_slice(&body).map_err(|e| {
-                    io::Error::new(
-                        io::ErrorKind::Other,
-                        e
-                    )
-                })?;
-                Ok(Response::new(status, json))
-            })
-        });
-
-        let mut core = self.core;
-        let response = core.run(work).unwrap_or(Response::new(hyper::StatusCode::default(), json!(null)));
-
-        Ok(response)
     }
 
-    fn setup_headers(req: &mut Request, auth_token: &str, param_version: Option<&str>) {
-        let mut headers = req.headers_mut();
+    fn construct_headers(auth_token: &str, param_version: Option<&str>) -> Headers {
+        let mut headers = Headers::new();
         let version = param_version.unwrap_or("3");
         headers.set_raw("Accept", format!("application/vnd.heroku+json; version={}", version));
         headers.set_raw("Content-Type", "application/json");
         headers.set_raw("Authorization", format!("Bearer {}", auth_token));
+
+        headers
     }
 
     fn default_netrc_path() -> Result<PathBuf, HerokuApiError> {
@@ -229,31 +193,26 @@ mod test {
     use std::io::Write;
     use std::ops::Deref;
     use self::tempdir::TempDir;
-    use self::hyper::header;
 
     #[test]
-    fn setup_headers_default_version() {
-        let uri = "https://www.google.com".parse().unwrap();
-        let mut request = Request::new(Method::Get, uri);
+    fn construct_headers_default_version() {
+        let uri = "https://www.google.com";
         let token = String::from("e1bd3f9535a2ed54684ec2af0190e3844aaec8b8");
 
-        HerokuApi::setup_headers(&mut request, &token, None);
+        let headers = HerokuApi::construct_headers(&token, None);
 
-        let headers = request.headers();
         assert_eq!(headers.get::<header::Authorization<header::Bearer>>().unwrap().deref().token, token);
         assert_eq!(headers.get::<header::Accept>().unwrap()[0].item, "application/vnd.heroku+json; version=3")
     }
 
     #[test]
-    fn setup_headers_version() {
-        let uri = "https://www.google.com".parse().unwrap();
-        let mut request = Request::new(Method::Get, uri);
+    fn construct_headers_version() {
+        let uri = "https://www.google.com";
         let token = String::from("e1bd3f9535a2ed54684ec2af0190e3844aaec8b8");
         let version = String::from("3.buildpack-registry");
 
-        HerokuApi::setup_headers(&mut request, &token, Some(&version));
+        let headers = HerokuApi::construct_headers(&token, Some(&version));
 
-        let headers = request.headers();
         let ref accept = headers.get::<header::Accept>().unwrap()[0];
         let expected: &str = &format!("application/vnd.heroku+json; version={}", version);
         assert_eq!(accept.item, expected);

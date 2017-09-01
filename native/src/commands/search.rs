@@ -1,7 +1,7 @@
-extern crate hyper;
+extern crate reqwest;
 
 use heroku_api::HerokuApi;
-use self::hyper::StatusCode;
+use self::reqwest::StatusCode;
 
 pub struct Search {
     pub name: String,
