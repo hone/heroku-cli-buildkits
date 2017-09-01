@@ -1,7 +1,6 @@
 #[cfg(test)]
 extern crate tempdir;
 
-use options::Options;
 use std::env;
 use std::fs;
 use std::io;
@@ -33,10 +32,6 @@ pub struct Init {
 }
 
 impl Init {
-    pub fn new(options: Options) -> Init {
-        Init { name: options.arg_name }
-    }
-
     pub fn execute(self) -> Result<(), io::Error> {
         let mut path_buf = env::current_dir()?;
         path_buf.push(self.name);

@@ -1,5 +1,3 @@
-use options::Options;
-
 #[derive(Serialize, Deserialize)]
 struct CreateRevisions {
     buildpack: CreateRevisionsBuildpack,
@@ -51,13 +49,6 @@ pub struct Publish {
 }
 
 impl Publish {
-    pub fn new(options: Options) -> Self {
-        Publish {
-            name: options.arg_name,
-            treeish: options.arg_treeish,
-        }
-    }
-
     pub fn execute(self) {
         let api = HerokuApi::new();
     }

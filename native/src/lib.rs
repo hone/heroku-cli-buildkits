@@ -6,7 +6,6 @@ extern crate serde_derive;
 extern crate serde_json;
 
 mod commands;
-mod options;
 mod heroku_api;
 
 use std::error::Error;

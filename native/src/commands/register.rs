@@ -2,7 +2,6 @@ extern crate hyper;
 extern crate serde;
 
 use std::collections::VecDeque;
-use options::Options;
 use heroku_api::HerokuApi;
 use self::hyper::StatusCode;
 
@@ -78,14 +77,6 @@ pub struct Register {
 }
 
 impl Register {
-    pub fn new(options: Options) -> Register {
-        Register {
-            name: options.arg_name,
-            namespace: options.arg_namespace,
-            repo: options.arg_repo,
-        }
-    }
-
     pub fn execute(self) {
         let api = HerokuApi::new_with_host("http://localhost:3000");
         let body = json!(CreateBuildpacks::new_without_owner(&self.name, &self.namespace, &self.repo));
