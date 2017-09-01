@@ -9,7 +9,7 @@ pub struct Search {
 
 impl Search {
     pub fn execute(self) {
-        let api = HerokuApi::new_with_host("http://localhost:3000");
+        let api = HerokuApi::new();
         let response = api.get_with_version("/buildpacks", "3.buildpack-registry").unwrap();
 
         match response.status {

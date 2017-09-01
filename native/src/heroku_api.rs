@@ -102,9 +102,10 @@ impl HerokuApi {
     }
 
     fn new_options(host: Option<&str>) -> Self {
+        let base_url = env::var("HEROKU_API_BASE_URL").unwrap_or(host.unwrap_or(vars::BASE_URL).to_owned());
         HerokuApi {
             client: reqwest::Client::new().unwrap(),
-            base_url: host.unwrap_or(vars::BASE_URL).to_owned(),
+            base_url: base_url,
         }
     }
 

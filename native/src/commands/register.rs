@@ -78,7 +78,7 @@ pub struct Register {
 
 impl Register {
     pub fn execute(self) {
-        let api = HerokuApi::new_with_host("http://localhost:3000");
+        let api = HerokuApi::new();
         let body = json!(CreateBuildpacks::new_without_owner(&self.name, &self.namespace, &self.repo));
         let response = api.post_with_version("/buildpacks/", "3.buildpack-registry", body).unwrap();
 
