@@ -31,7 +31,6 @@ impl Publish {
         let body = json!(CreateRevisions::new(&self.tag));
         let buildpack = format!("{}/{}", &self.namespace, &self.name);
         let url_path = format!("/buildpacks/{}/revisions", utf8_percent_encode(&buildpack, PATH_SEGMENT_ENCODE_SET).to_string());
-        println!("{}", url_path);
         let response = api.post_with_version(&url_path, "3.buildpack-registry", body).unwrap();
 
         match response.status {
