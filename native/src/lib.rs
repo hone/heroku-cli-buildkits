@@ -57,6 +57,22 @@ fn search(mut call: Call) -> JsResult<JsNull> {
     Ok(JsNull::new())
 }
 
+fn publish(mut call: Call) -> JsResult<JsNull> {
+    let namespace = fetch_arg::<JsString>(&mut call, 0)?.value();
+    let name = fetch_arg::<JsString>(&mut call, 1)?.value();
+    let tag = fetch_arg::<JsString>(&mut call, 2)?.value();
+
+    let cmd = commands::Publish {
+        namespace: namespace,
+        name: name,
+        tag: tag,
+    };
+
+    cmd.execute();
+
+    Ok(JsNull::new())
+}
+
 fn fetch_arg<'a, T: Value>(call: &mut Call<'a>, index: i32) -> JsResult<'a, T> {
     call.arguments.require(call.scope, index)?.check::<T>()
 }
@@ -65,5 +81,6 @@ register_module!(m, {
     m.export("register", register)?;
     m.export("init", init)?;
     m.export("search", search)?;
+    m.export("publish", publish)?;
     Ok(())
 });

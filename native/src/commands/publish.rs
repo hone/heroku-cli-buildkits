@@ -1,55 +1,54 @@
+extern crate percent_encoding;
+extern crate reqwest;
+extern crate serde;
+
+use heroku_api::HerokuApi;
+use self::percent_encoding::{utf8_percent_encode, PATH_SEGMENT_ENCODE_SET};
+use self::reqwest::StatusCode;
+
 #[derive(Serialize, Deserialize)]
 struct CreateRevisions {
-    buildpack: CreateRevisionsBuildpack,
-    published_by: CreateRevisionsPublishedBy,
     tag: String,
 }
 
 impl CreateRevisions {
-    pub fn new(buildpack_id: &str, published_by_id: &str, published_by_email: &str, tag: &str) -> Self {
+    pub fn new(tag: &str) -> Self {
         CreateRevisions {
-            buildpack: CreateRevisionsBuildpack::new(buildpack_id),
-            published_by: CreateRevisionsPublishedBy::new(published_by_id, published_by_email),
             tag: tag.to_owned(),
         }
     }
 }
 
-#[derive(Serialize, Deserialize)]
-struct CreateRevisionsBuildpack {
-    id: String,
-}
-
-impl CreateRevisionsBuildpack {
-    pub fn new(id: &str) -> Self {
-        CreateRevisionsBuildpack {
-            id: id.to_owned(),
-        }
-    }
-}
-
-#[derive(Serialize, Deserialize)]
-struct CreateRevisionsPublishedBy {
-    id: String,
-    email: String,
-}
-
-impl CreateRevisionsPublishedBy {
-    pub fn new(id: &str, email: &str) -> Self {
-        CreateRevisionsPublishedBy {
-            id: id.to_owned(),
-            email: email.to_owned(),
-        }
-    }
-}
-
 pub struct Publish {
-    name: String,
-    treeish: String,
+    pub namespace: String,
+    pub name: String,
+    pub tag: String,
 }
 
 impl Publish {
     pub fn execute(self) {
         let api = HerokuApi::new();
+        let body = json!(CreateRevisions::new(&self.tag));
+        let buildpack = format!("{}/{}", &self.namespace, &self.name);
+        let url_path = format!("/buildpacks/{}/revisions", utf8_percent_encode(&buildpack, PATH_SEGMENT_ENCODE_SET).to_string());
+        println!("{}", url_path);
+        let response = api.post_with_version(&url_path, "3.buildpack-registry", body).unwrap();
+
+        match response.status {
+            StatusCode::Ok => {
+                let json = response.body;
+                let name = json["name"].as_str().unwrap();
+                println!("Successfully registered buildpack '{}'.", name);
+            },
+            StatusCode::UnprocessableEntity => {
+                let json = response.body;
+                for entry in json.as_object().unwrap() {
+                    let (key, value) = entry;
+                    let error_message = value.as_array().unwrap().into_iter().map(|item| item.as_str().unwrap()).collect::<Vec<&str>>().join("\n");
+                    println!("{} {}", key, error_message);
+                }
+            },
+            status => println!("Could not register buildpack.\nReceived: {}, {}", status, response.body),
+        }
     }
 }
