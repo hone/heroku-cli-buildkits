@@ -11,6 +11,7 @@ mod heroku_api;
 use std::error::Error;
 use std::io::prelude::*;
 use neon::js::{JsNull, JsString, Value};
+use neon::mem::Handle;
 use neon::vm::{Call, JsResult};
 
 fn init(mut call: Call) -> JsResult<JsNull> {
@@ -35,11 +36,17 @@ fn register(mut call: Call) -> JsResult<JsNull> {
     let repo = fetch_arg::<JsString>(&mut call, 0)?.value();
     let namespace = fetch_arg::<JsString>(&mut call, 1)?.value();
     let name = fetch_arg::<JsString>(&mut call, 2)?.value();
+    // coerce into string if team flag is passed
+    let team = match check_arg::<JsString>(&mut call, 3) {
+        Some(handle) => Some(handle.value()),
+        None => None,
+    };
 
     let cmd = commands::Register {
         repo: repo,
         namespace: namespace,
         name: name,
+        team: team,
     };
 
     cmd.execute();
@@ -75,6 +82,10 @@ fn publish(mut call: Call) -> JsResult<JsNull> {
 
 fn fetch_arg<'a, T: Value>(call: &mut Call<'a>, index: i32) -> JsResult<'a, T> {
     call.arguments.require(call.scope, index)?.check::<T>()
+}
+
+fn check_arg<'a, T: Value>(call: &mut Call<'a>, index: i32) -> Option<Handle<'a, T>> {
+    call.arguments.get(call.scope, index).and_then(|handle| handle.downcast::<T>())
 }
 
 register_module!(m, {

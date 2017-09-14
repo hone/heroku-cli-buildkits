@@ -1,9 +1,11 @@
 extern crate reqwest;
 extern crate serde;
+extern crate url;
 
 use std::collections::VecDeque;
 use heroku_api::HerokuApi;
 use self::reqwest::StatusCode;
+use self::url::{Url};
 
 #[derive(Serialize, Deserialize)]
 struct CreateBuildpacks {
@@ -15,15 +17,9 @@ struct CreateBuildpacks {
 }
 
 impl CreateBuildpacks {
-    pub fn new(name: &str, namespace: &str, repo_string: &str, owner_id: &str, owner_type: &str) -> Self {
-        Self::new_options(name, namespace, repo_string, Some(CreateBuildpacksOwner::new(owner_id, owner_type)))
-    }
+    pub fn new(name: &str, namespace: &str, repo_string: &str, team: Option<String>) -> Self {
+        let owner = team.map(|team_name| CreateBuildpacksOwner::new(&team_name, "team"));
 
-    pub fn new_without_owner(name: &str, namespace: &str, repo_string: &str) -> Self {
-        Self::new_options(name, namespace, repo_string, None)
-    }
-
-    fn new_options(name: &str, namespace: &str, repo_string: &str, owner: Option<CreateBuildpacksOwner>) -> Self {
         CreateBuildpacks {
             name: name.to_owned(),
             namespace: namespace.to_owned(),
@@ -57,15 +53,15 @@ impl CreateBuildpacksSource {
 
 #[derive(Serialize, Deserialize)]
 struct CreateBuildpacksOwner {
-    id: String,
+    name: String,
     #[serde(rename = "type")]
     owner_type: String,
 }
 
 impl CreateBuildpacksOwner {
-    pub fn new(id: &str, owner_type: &str) -> Self {
+    pub fn new(name: &str, owner_type: &str) -> Self {
         CreateBuildpacksOwner {
-            id: id.to_owned(),
+            name: name.to_owned(),
             owner_type: owner_type.to_owned(),
         }
     }
@@ -75,13 +71,14 @@ pub struct Register {
     pub repo: String,
     pub namespace: String,
     pub name: String,
+    pub team: Option<String>,
 }
 
 impl Register {
     pub fn execute(self) {
         let api = HerokuApi::new();
-        let body = json!(CreateBuildpacks::new_without_owner(&self.name, &self.namespace, &self.repo));
-        let response = api.post_with_version("/buildpacks/", "3.buildpack-registry", body).unwrap();
+        let body = json!(CreateBuildpacks::new(&self.name, &self.namespace, &self.repo, self.team));
+        let response = api.post_with_version("/buildpacks", "3.buildpack-registry", body).unwrap();
 
         match response.status {
             StatusCode::Ok => {

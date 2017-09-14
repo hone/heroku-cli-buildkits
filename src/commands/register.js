@@ -8,6 +8,9 @@ export default class Create extends Command {
   static topic = '_buildkits'
   static command = 'register'
   static description = 'create a buildpack'
+  static flags = {
+    team: flags.team()
+  }
   static args = [
     {
       name: 'repo',
@@ -27,6 +30,6 @@ export default class Create extends Command {
   ]
 
   async run () {
-    addon.register(this.args.repo, this.args.namespace, this.args.name)
+    addon.register(this.args.repo, this.args.namespace, this.args.name, this.flags.team)
   }
 }

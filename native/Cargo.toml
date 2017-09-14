@@ -15,6 +15,7 @@ netrc = "0.4.1"
 neon = "0.1.19"
 reqwest = "0.7"
 percent-encoding = "1.0"
+url = "1.5.1"
 
 [build-dependencies]
 neon-build = "0.1.19"
