@@ -43,9 +43,10 @@ struct CreateBuildpacksSource {
 
 impl CreateBuildpacksSource {
     pub fn new(repo_string: &str) -> Self {
-        let mut parts: VecDeque<&str> = repo_string.split("/").collect();
+        let repo_url = Url::parse(repo_string).unwrap();
+        let mut parts: VecDeque<&str> = repo_url.path_segments().unwrap().collect();
         let owner = parts.pop_front().unwrap();
-        let repo = Vec::from(parts).join("/");
+        let repo = Vec::from(parts).join("/").replace(".git", "");
         CreateBuildpacksSource {
             type_name: "github".to_owned(),
             owner: owner.to_owned(),
