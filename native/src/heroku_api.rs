@@ -7,7 +7,7 @@ use std::env;
 use std::fmt;
 use std::fs::File;
 use std::io;
-use std::io::BufReader;
+use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
 use self::netrc::Netrc;
 use self::reqwest::header::{Headers, ContentLength};
@@ -153,7 +153,15 @@ impl HerokuApi {
                 Ok(Response::new(status, response.json().unwrap()))
             },
             _ => {
-                Ok(Response::new(status, json!(null)))
+                let body = response.json();
+                match body {
+                    Ok(json_body) => Ok(Response::new(status, json_body)),
+                    Err(_) => {
+                        let mut string_body = String::new();
+                        response.read_to_string(&mut string_body).unwrap();
+                        Ok(Response::new(status, json!({"error": string_body})))
+                    },
+                }
             },
         }
     }
@@ -193,6 +201,7 @@ mod test {
     use super::*;
     use std::io::Write;
     use std::ops::Deref;
+    use self::reqwest::header;
     use self::tempdir::TempDir;
 
     #[test]
