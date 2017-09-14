@@ -44,7 +44,7 @@ script:
 # node-pre-gyp clean
 #
 # test our module
-- yarn test
+#- yarn test
 
 
 after_success:

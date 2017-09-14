@@ -28,8 +28,8 @@ install:
 
 build: false
 
-test_script:
-  - yarn test
+#test_script:
+#  - yarn test
 
 after_test:
   - node-pre-gyp package
