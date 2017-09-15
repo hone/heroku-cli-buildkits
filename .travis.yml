@@ -45,6 +45,7 @@ script:
 #
 # test our module
 #- yarn test
+- ls
 
 
 after_success:
