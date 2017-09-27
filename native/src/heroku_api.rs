@@ -83,6 +83,25 @@ impl Response {
             body: body,
         }
     }
+
+    pub fn handle_unprocessable_entity(&self) {
+        if let Some(object) = self.body.as_object() {
+            for (key, value) in object {
+                let error_message = match value.as_array() {
+                    Some(array) => {
+                        array.into_iter()
+                            .map(|item| {
+                                item.as_str()
+                                    .unwrap_or("")
+                            }).collect::<Vec<&str>>().join("\n")
+                    },
+                    None => value.as_str().unwrap_or("").to_string(),
+                };
+
+                eprintln!("{}: {}", key, error_message);
+            }
+        }
+    }
 }
 
 pub struct HerokuApi {
