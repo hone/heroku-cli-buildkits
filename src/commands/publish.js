@@ -10,11 +10,6 @@ export default class Create extends Command {
   static description = 'publish new revision of buildpack'
   static args = [
     {
-      name: 'namespace',
-      optional: false,
-      description: 'namespace of the buildpack'
-    },
-    {
       name: 'name',
       optional: false,
       description: 'name of the buildpack'
@@ -27,8 +22,14 @@ export default class Create extends Command {
   ]
 
   async run () {
-    addon.publish(this.args.namespace, this.args.name, this.args.tag)
+    let nameParts = this.args.name.split("/")
+    if (nameParts.length != 2) {
+      this.out.error(`Invalid buildpack name: ${this.args.name}`)
+      return
+    }
+    let namespace = nameParts[0]
+    let name = nameParts[1]
+
+    addon.publish(namespace, name, this.args.tag)
   }
 }
-
-
