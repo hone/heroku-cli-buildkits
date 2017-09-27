@@ -2,6 +2,12 @@
 
 Create and publish buildpacks.
 
+## Install
+
+```
+$ heroku plugins:install heroku-cli-buildkits
+```
+
 ## Usage
 
 Create a new buildpack:
