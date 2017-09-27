@@ -110,26 +110,26 @@ impl HerokuApi {
     }
 
     #[allow(dead_code)]
-    pub fn get(self, uri: &str) -> Result<Response, HerokuApiError> {
+    pub fn get(&self, uri: &str) -> Result<Response, HerokuApiError> {
         self.request(uri, Method::Get, None, None)
     }
 
     #[allow(dead_code)]
-    pub fn get_with_version(self, uri: &str, version: &str) -> Result<Response, HerokuApiError> {
+    pub fn get_with_version(&self, uri: &str, version: &str) -> Result<Response, HerokuApiError> {
         self.request(uri, Method::Get, Some(version), None)
     }
 
     #[allow(dead_code)]
-    pub fn post(self, uri: &str, body: serde_json::Value) -> Result<Response, HerokuApiError> {
+    pub fn post(&self, uri: &str, body: serde_json::Value) -> Result<Response, HerokuApiError> {
         self.request(uri, Method::Post, None, Some(body))
     }
 
     #[allow(dead_code)]
-    pub fn post_with_version(self, uri: &str, version: &str, body: serde_json::Value) -> Result<Response, HerokuApiError> {
+    pub fn post_with_version(&self, uri: &str, version: &str, body: serde_json::Value) -> Result<Response, HerokuApiError> {
         self.request(uri, Method::Post, Some(version), Some(body))
     }
 
-    fn request(self, uri: &str, method: Method, version: Option<&str>, body: Option<serde_json::Value>) -> Result<Response, HerokuApiError> {
+    fn request(&self, uri: &str, method: Method, version: Option<&str>, body: Option<serde_json::Value>) -> Result<Response, HerokuApiError> {
         let uri = format!("{}{}", self.base_url, uri);
         let mut req = self.client.request(method, &uri).unwrap();
         let netrc_path = Self::default_netrc_path()?;
