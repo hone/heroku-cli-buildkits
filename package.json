@@ -40,7 +40,7 @@
     "eslint-plugin-promise": "^3.5.0",
     "eslint-plugin-standard": "^3.0.1",
     "jest": "^20.0.4",
-    "neon-cli": "^0.1.18",
+    "neon-cli": "^0.1.22",
     "node-pre-gyp": "^0.6.36",
     "rimraf": "^2.6.1"
   },
