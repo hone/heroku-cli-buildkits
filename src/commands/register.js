@@ -1,7 +1,7 @@
 import {Command, flags} from 'cli-engine-heroku'
 import binary from 'node-pre-gyp'
 import path from 'path'
-import child from 'child_process';
+import child from 'child_process'
 var addonPath = binary.find(path.resolve(path.join(__dirname, '../../package.json')))
 var addon = require(addonPath)
 
@@ -26,28 +26,28 @@ export default class Create extends Command {
   ]
 
   async run () {
-    let nameParts = this.args.name.split("/")
-    if (nameParts.length != 2) {
+    let nameParts = this.args.name.split('/')
+    if (nameParts.length !== 2) {
       this.out.error(`Invalid buildpack name: ${this.args.name}`)
       return
     }
     let namespace = nameParts[0]
     let name = nameParts[1]
-    
+
     if (this.args.url) {
       addon.register(this.args.url, namespace, name, this.flags.team)
     } else {
-      child.exec("git remote get-url origin", (err, stdout, stderr) => {
+      child.exec('git remote get-url origin', (err, stdout, stderr) => {
         if (err) {
-          this.out.error("Error getting repo URL")
+          this.out.error('Error getting repo URL')
         } else {
           if (stdout) {
             let repoUrl = `${stdout}`
-            if (repoUrl.substring(0, 4) == "http") {
-              let repo = repoUrl.replace(".git", "")
+            if (repoUrl.substring(0, 4) === 'http') {
+              let repo = repoUrl.replace('.git', '')
               addon.register(repo, namespace, name, this.flags.team)
-            } else if (repoUrl.substring(0, 14) == "git@github.com") {
-              let repo = repoUrl.replace("git@github.com:", "https://github.com/").replace(".git", "")
+            } else if (repoUrl.substring(0, 14) === 'git@github.com') {
+              let repo = repoUrl.replace('git@github.com:', 'https://github.com/').replace('.git', '')
               addon.register(repo, namespace, name, this.flags.team)
             } else {
               this.out.error(`Unrecognized repo URL: ${repoUrl}`)

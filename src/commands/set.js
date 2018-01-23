@@ -1,9 +1,5 @@
 import {Command, flags} from 'cli-engine-heroku'
-import binary from 'node-pre-gyp'
-import path from 'path'
 import child from 'child_process'
-var addonPath = binary.find(path.resolve(path.join(__dirname, '../../package.json')))
-var addon = require(addonPath)
 
 export default class Create extends Command {
   static topic = '_buildkits'
