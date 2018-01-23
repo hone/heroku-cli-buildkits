@@ -1,7 +1,7 @@
 environment:
   NODE_PRE_GYP_GITHUB_TOKEN:
     secure: 97nEGQD8WunBmL8rjt0lmk4LC34NhaNE9DDSTFudznlgTJaeclY/H1iOn+oh4Yy4
-  nodejs_version: 8
+  nodejs_version: 9
   rust_channel: stable
   matrix:
     - platform: x64
