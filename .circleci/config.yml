@@ -28,11 +28,42 @@ jobs:
             - node_modules
             - /usr/local/share/.cache/yarn
       - run: if [[ $CIRCLE_TAG == `git describe --tags --always HEAD` ]]; then node-pre-gyp package; node-pre-gyp-github publish; fi;
+  build-osx:
+    macos:
+      xcode: "9.0"
+    working_directory: ~/cli-plugin
+    steps:
+      # setup rustc
+      - run: curl https://sh.rustup.rs -sSf | sh -s -- -y
+      - run: $HOME/.cargo/bin/rustup default stable
+      # put local node-pre-gyp on PATH
+      - run: export PATH=./node_modules/.bin/:$HOME/.cargo/bin/:$PATH
+      # put global node-gyp on PATH
+      - run: npm install node-gyp node-pre-gyp-github neon-cli -g
+      # install a newer version of yarn
+      - run: curl -o- -L https://yarnpkg.com/install.sh | bash -s
+      - checkout
+      - restore_cache:
+          keys:
+            - node-modules-{{ checksum "yarn.lock" }}
+            - node-modules-
+      - run: yarn install
+#      - run: yarn test -- --coverage && bash <(curl -s https://codecov.io/bash)
+      - save_cache:
+          key: node-modules-{{ checksum "yarn.lock" }}
+          paths:
+            - node_modules
+            - /usr/local/share/.cache/yarn
+      - run: if [[ $CIRCLE_TAG == `git describe --tags --always HEAD` ]]; then node-pre-gyp package; node-pre-gyp-github publish; fi;
 workflows:
   version: 2
   build-workflow:
     jobs:
       - build:
+          filters:
+            tags:
+              ignore: /^testing/
+      - build-osx:
           filters:
             tags:
               ignore: /^testing/
