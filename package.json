@@ -1,6 +1,6 @@
 {
   "name": "heroku-cli-buildkits",
-  "version": "0.0.7-beta.2",
+  "version": "0.0.7",
   "description": "",
   "main": "lib/index.js",
   "repository": {
