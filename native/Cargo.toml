@@ -8,11 +8,13 @@ name = "heroku_cli_buildkits"
 crate-type = ["dylib"]
 
 [dependencies]
+lazy_static = "1.0"
 serde = "1.0"
 serde_derive = "1.0"
 serde_json = "1.0"
 netrc = "0.4.1"
 neon = "0.1.19"
+regex = "0.2"
 reqwest = "0.7"
 percent-encoding = "1.0"
 url = "1.5.1"

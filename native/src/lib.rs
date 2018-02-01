@@ -1,4 +1,6 @@
 #[macro_use]
+extern crate lazy_static;
+#[macro_use]
 extern crate neon;
 #[macro_use]
 extern crate serde_derive;
@@ -41,12 +43,14 @@ fn register(mut call: Call) -> JsResult<JsNull> {
         Some(handle) => Some(handle.value()),
         None => None,
     };
+    let support = fetch_arg::<JsString>(&mut call, 4)?.value();
 
     let cmd = commands::Register {
         repo: repo,
         namespace: namespace,
         name: name,
         team: team,
+        support: support,
     };
 
     cmd.execute();

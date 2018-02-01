@@ -1,7 +1,9 @@
+extern crate regex;
 extern crate reqwest;
 extern crate serde;
 extern crate url;
 
+use self::regex::Regex;
 use std::collections::VecDeque;
 use heroku_api::HerokuApi;
 use self::reqwest::StatusCode;
@@ -14,10 +16,11 @@ struct CreateBuildpacks {
     source: CreateBuildpacksSource,
     #[serde(skip_serializing_if = "Option::is_none")]
     owner: Option<CreateBuildpacksOwner>,
+    support: CreateBuildpacksSupport,
 }
 
 impl CreateBuildpacks {
-    pub fn new(name: &str, namespace: &str, repo_string: &str, team: Option<String>) -> Self {
+    pub fn new(name: &str, namespace: &str, repo_string: &str, team: Option<String>, support: &str) -> Self {
         let owner = team.map(|team_name| CreateBuildpacksOwner::new(&team_name, "team"));
 
         CreateBuildpacks {
@@ -25,6 +28,7 @@ impl CreateBuildpacks {
             namespace: namespace.to_owned(),
             source: CreateBuildpacksSource::new(repo_string),
             owner: owner,
+            support: CreateBuildpacksSupport::new(support),
         }
     }
 }
@@ -52,6 +56,54 @@ impl CreateBuildpacksSource {
 }
 
 #[derive(Serialize, Deserialize)]
+enum CreateBuildpacksSupportMethod {
+    #[serde(rename = "github")]
+    Github,
+    #[serde(rename = "email")]
+    Email,
+    #[serde(rename = "website")]
+    Website,
+    #[serde(rename = "unsupported")]
+    Unsupported,
+}
+
+#[derive(Serialize, Deserialize)]
+struct CreateBuildpacksSupport {
+    method: CreateBuildpacksSupportMethod,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    address: Option<String>,
+}
+
+impl CreateBuildpacksSupport {
+    pub fn new(source: &str) -> Self {
+        let mut address = None;
+        let mut method = CreateBuildpacksSupportMethod::Unsupported;
+        lazy_static! {
+            static ref EMAIL_RE: Regex = Regex::new(r"(?x)
+                ^[^@\s]+@
+                (\w+\.)+
+                \w+$
+                ").unwrap();
+        }
+
+        if source == "github" {
+            method = CreateBuildpacksSupportMethod::Github;
+        } else if EMAIL_RE.is_match(source) {
+            method = CreateBuildpacksSupportMethod::Email;
+            address = Some(source.to_owned());
+        } else if Url::parse(source).is_ok() {
+            method = CreateBuildpacksSupportMethod::Website;
+            address = Some(source.to_owned());
+        }
+
+        CreateBuildpacksSupport {
+            method: method,
+            address: address,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize)]
 struct CreateBuildpacksOwner {
     name: String,
     #[serde(rename = "type")]
@@ -72,12 +124,13 @@ pub struct Register {
     pub namespace: String,
     pub name: String,
     pub team: Option<String>,
+    pub support: String,
 }
 
 impl Register {
     pub fn execute(self) {
         let api = HerokuApi::new();
-        let body = json!(CreateBuildpacks::new(&self.name, &self.namespace, &self.repo, self.team));
+        let body = json!(CreateBuildpacks::new(&self.name, &self.namespace, &self.repo, self.team, &self.support));
         let response = api.post_with_version("/buildpacks", "3.buildpack-registry", body).unwrap();
 
         match response.status {
