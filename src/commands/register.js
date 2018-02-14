@@ -22,7 +22,7 @@ export default class Create extends Command {
     {
       name: 'url',
       optional: true,
-      description: 'github repo URL for the buildpack'
+      description: 'github repo URL for the buildpack, if not specified it will try to autodetect based off of the origin git remote'
     },
   ]
 
