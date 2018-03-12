@@ -5,7 +5,7 @@ var addonPath = binary.find(path.resolve(path.join(__dirname, '../../package.jso
 var addon = require(addonPath)
 
 export default class Create extends Command {
-  static topic = '_buildkits'
+  static topic = 'buildpacks'
   static command = 'search'
   static description = 'search for buildpacks'
   static args = [

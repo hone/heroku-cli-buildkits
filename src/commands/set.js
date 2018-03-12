@@ -2,7 +2,7 @@ import {Command, flags} from 'cli-engine-heroku'
 import child from 'child_process'
 
 export default class Create extends Command {
-  static topic = '_buildkits'
+  static topic = 'buildpacks'
   static command = 'set'
   static description = 'bootstrap a new buildpack'
   static flags = {
