@@ -68,7 +68,7 @@ impl From<&'static str> for HerokuApiError {
 }
 
 mod vars {
-    pub const BASE_URL: &'static str = "https://buildpack-registry.herokuapp.com";
+    pub const BASE_URL: &'static str = "https://buildkits2-api-staging.herokuapp.com";
 }
 
 pub struct Response {

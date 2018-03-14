@@ -13,7 +13,7 @@ export default class BuildpackRegistry {
 
   static url() {
     if (process.env.HEROKU_BUILDPACK_REGISTRY_URL === undefined) {
-      return 'buildpack-registry.herokuapp.com';
+      return 'buildkits2-api-staging.herokuapp.com';
     } else {
       return process.env.HEROKU_BUILDPACK_REGISTRY_URL;
     }
