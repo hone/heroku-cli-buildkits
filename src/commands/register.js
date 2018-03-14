@@ -1,4 +1,5 @@
 import {Command, flags} from 'cli-engine-heroku'
+import cli from 'heroku-cli-util'
 import binary from 'node-pre-gyp'
 import path from 'path'
 import child from 'child_process'
@@ -16,7 +17,7 @@ export default class Create extends Command {
   static args = [
     {
       name: 'name',
-      optional: false,
+      optional: true,
       description: 'name of the buildpack'
     },
     {
@@ -27,6 +28,10 @@ export default class Create extends Command {
   ]
 
   async run () {
+    let partner_portal = 'https://partner-portal-ui-staging.herokuapp.com/buildpacks/new'
+    this.out.log("Opening the buildpack registration page...")
+    cli.open(partner_portal)
+    /*
     let support = this.flags.support || "";
     let nameParts = this.args.name.split('/')
     if (nameParts.length !== 2) {
@@ -60,5 +65,6 @@ export default class Create extends Command {
         }
       })
     }
+    */
   }
 }
