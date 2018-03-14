@@ -132,7 +132,7 @@ BuildpackCommand.prototype.registryNameToUrl = function (buildpack) {
         cli.exit(1, `${err.statusCode}: ${err.message}`)
       }
     })
-    return `https://heroku-buildkits-production.s3.amazonaws.com/buildpacks/${buildpack}.tgz`
+    return `https://heroku-buildkits-staging.s3.amazonaws.com/buildpacks/${buildpack}.tgz`
   } else {
     cli.exit(1, `Invalid buildpack name or URL: ${buildpack}`)
   }
