@@ -68,7 +68,7 @@ impl From<&'static str> for HerokuApiError {
 }
 
 mod vars {
-    pub const BASE_URL: &'static str = "https://api.heroku.com";
+    pub const BASE_URL: &'static str = "https://buildpack-registry.herokuapp.com";
 }
 
 pub struct Response {
@@ -121,7 +121,7 @@ impl HerokuApi {
     }
 
     fn new_options(host: Option<&str>) -> Self {
-        let base_url = env::var("HEROKU_API_BASE_URL").unwrap_or(host.unwrap_or(vars::BASE_URL).to_owned());
+        let base_url = env::var("HEROKU_BUILDPACK_REGISTRY_URL").unwrap_or(host.unwrap_or(vars::BASE_URL).to_owned());
         HerokuApi {
             client: reqwest::Client::new().unwrap(),
             base_url: base_url,
