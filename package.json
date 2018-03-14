@@ -5,7 +5,7 @@
   "main": "lib/index.js",
   "repository": {
     "type": "git",
-    "url": "https://github.com/heroku/heroku-cli-buildkits.git"
+    "url": "https://github.com/hone/heroku-cli-buildkits.git"
   },
   "author": "Terence Lee <hone02@gmail.com>",
   "license": "MIT",
@@ -54,7 +54,7 @@
   "binary": {
     "module_name": "index",
     "module_path": "./lib/native",
-    "host": "https://github.com/heroku/heroku-cli-buildpacks/releases/download/",
+    "host": "https://github.com/hone/heroku-cli-buildkits/releases/download/",
     "remote_path": "{version}"
   }
 }
