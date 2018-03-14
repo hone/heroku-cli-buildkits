@@ -2,6 +2,8 @@
 
 import cli from 'heroku-cli-util'
 import push from './push'
+import validUrl from 'valid-url'
+import buildpackRegistry from './buildpack_registry'
 
 function BuildpackCommand (context, heroku, command, action) {
   this.app = context.app
@@ -21,6 +23,7 @@ function BuildpackCommand (context, heroku, command, action) {
   this.action = action
   this.command = command
   this.context = context
+  this.registry = buildpackRegistry.create(context.auth.password)
 }
 
 BuildpackCommand.prototype.mapBuildpackResponse = function (buildpacks) {
@@ -89,7 +92,7 @@ BuildpackCommand.prototype.findIndex = function (buildpacks) {
 BuildpackCommand.prototype.findUrl = function findUrl (buildpacks) {
   const findIndex = require('lodash.findindex')
   let url = this.url
-  let mappedUrl = this.url.replace(/^urn:buildpack:/, '').replace(/^https:\/\/codon-buildpacks\.s3\.amazonaws\.com\/buildpacks\/heroku\/(.*)\.tgz$/, 'heroku/$1')
+  let mappedUrl = this.registryNameToUrl(url)
   return findIndex(buildpacks, function (b) { return b.buildpack.url === url || b.buildpack.url === mappedUrl })
 }
 
@@ -105,12 +108,42 @@ BuildpackCommand.prototype.display = function (buildpacks, indent) {
 
 BuildpackCommand.prototype.displayUpdate = function (buildpacks) {
   if (buildpacks.length === 1) {
-    cli.log(`Buildpack ${this.action}. Next release on ${this.app} will use ${buildpacks[0].buildpack.url}.`)
+    cli.log(`Buildpack ${this.action}. Next release on ${this.app} will use ${this.registryUrlToName(buildpacks[0].buildpack.url)}.`)
     cli.log(`Run ${cli.color.magenta(push(this.context.flags.remote))} to create a new release using this buildpack.`)
   } else {
     cli.log(`Buildpack ${this.action}. Next release on ${this.app} will use:`)
     this.display(buildpacks, '  ')
     cli.log(`Run ${cli.color.magenta(push(this.context.flags.remote))} to create a new release using these buildpacks.`)
+  }
+}
+
+BuildpackCommand.prototype.registryNameToUrl = function (buildpack) {
+  if (validUrl.isWebUri(buildpack)) {
+    return buildpack
+  }
+
+  let nameParts = buildpack.split('/')
+  if (nameParts.length == 2) {
+    let buildpackUrlEncodedName = buildpack.replace('/', '%2F');
+    this.registry.get(`/buildpacks/${buildpackUrlEncodedName}`).catch(function(err) {
+      if (err.statusCode == 404) {
+        cli.exit(1, `${buildpack} is not in the buildpack registry.`)
+      } else {
+        cli.exit(1, `${err.statusCode}: ${err.message}`)
+      }
+    })
+    return `https://heroku-buildkits-production.s3.amazonaws.com/buildpacks/${buildpack}.tgz`
+  } else {
+    cli.exit(1, `Invalid buildpack name or URL: ${buildpack}`)
+  }
+}
+
+BuildpackCommand.prototype.registryUrlToName = function (buildpack) {
+  let match = /^https:\/\/heroku-buildkits-production\.s3\.amazonaws\.com\/buildpacks\/([\w\-]+\/[\w\-]+).tgz$/.exec(buildpack)
+  if (match) {
+    return match[1]
+  } else {
+    return buildpack
   }
 }
 
@@ -120,7 +153,7 @@ BuildpackCommand.prototype.mutate = function (buildpacksGet, spliceIndex) {
   })
 
   let howmany = (this.command === 'add') ? 0 : 1
-  let urls = (this.command === 'remove') ? [] : [{buildpack: this.url}]
+  let urls = (this.command === 'remove') ? [] : [{buildpack: this.registryNameToUrl(this.url)}]
 
   Array.prototype.splice.apply(buildpackUpdates, [spliceIndex, howmany].concat(urls))
 

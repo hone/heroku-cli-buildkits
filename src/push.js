@@ -1,5 +1,3 @@
-// @flow
-
-export default function push (remote: string) {
+export default function push (remote) {
   return `git push ${remote || 'heroku'} master`
 }
